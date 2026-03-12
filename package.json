@@ -1,0 +1,13 @@
+{
+    "$schema": "https://www.schemastore.org/package.json",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "build": "vite build",
+        "dev": "vite"
+    },
+    "dependencies": {
+        "docx": "^9.6.0",
+        "file-saver": "^2.0.5"
+    }
+}
