@@ -12,6 +12,10 @@ services:
     ports:
       - "8080:8080"     # UI / API de Jenkins
       - "50000:50000"   # agentes (opcional)
+    environment:
+      # Permite que el reporte HTML de k6 (JavaScript embebido) se renderice en Jenkins.
+      # Desactiva la CSP restrictiva del htmlpublisher. OK para entorno local.
+      - JAVA_OPTS=-Dhudson.model.DirectoryBrowserSupport.CSP=
     volumes:
       - jenkins_home:/var/jenkins_home
     restart: unless-stopped
