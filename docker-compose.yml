@@ -1,0 +1,20 @@
+# Jenkins local para PerformanceHub.
+# Levanta el servidor que ejecuta las pruebas de k6 / JMeter.
+#
+#   docker compose up -d --build
+#
+# Jenkins queda en http://localhost:8080  (coincide con JENKINS_URL del .env)
+services:
+  jenkins:
+    build: ./jenkins
+    image: performancehub-jenkins
+    container_name: performancehub-jenkins
+    ports:
+      - "8080:8080"     # UI / API de Jenkins
+      - "50000:50000"   # agentes (opcional)
+    volumes:
+      - jenkins_home:/var/jenkins_home
+    restart: unless-stopped
+
+volumes:
+  jenkins_home:

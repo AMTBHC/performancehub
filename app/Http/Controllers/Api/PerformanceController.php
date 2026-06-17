@@ -144,12 +144,19 @@ public function getBuilds(Request $request)
                 if ($build['result'] == 'FAILURE') $status = 'failure';
                 if ($build['result'] == 'ABORTED') $status = 'aborted';
 
+                // Detectamos la herramienta desde el nombre del build (lo escribe el Jenkinsfile)
+                // para apuntar al reporte correcto: k6 -> Reporte_20k6, JMeter -> Reporte_20JMeter.
+                $displayName = $build['displayName'] ?? "Build #{$build['number']}";
+                $tool = str_contains(strtolower($displayName), 'k6') ? 'k6' : 'jmeter';
+                $reportDir = $tool === 'k6' ? 'Reporte_20k6' : 'Reporte_20JMeter';
+
                 return [
                     'id' => $build['number'],
-                    'displayName' => $build['displayName'] ?? "Build #{$build['number']}",
+                    'displayName' => $displayName,
                     'status' => $status,
+                    'tool' => $tool,
                     'timestamp' => date('Y-m-d H:i', $build['timestamp'] / 1000),
-                    'reportUrl' => env('JENKINS_URL') . "/job/{$jobPath}/" . $build['number'] . "/Reporte_20JMeter/"
+                    'reportUrl' => env('JENKINS_URL') . "/job/{$jobPath}/" . $build['number'] . "/{$reportDir}/"
                 ];
             });
 
@@ -177,13 +184,23 @@ public function analizarReporte(Request $request)
 {
     $projectName = $request->query('project');
     $buildNumber = $request->query('build');
+    $tool        = strtolower($request->query('tool', 'jmeter'));
 
     if (!$projectName || !$buildNumber) {
         return response()->json(['error' => 'Faltan parámetros: project o build'], 400);
     }
 
+    // Cada herramienta publica su reporte en una carpeta y un JSON distintos.
+    if ($tool === 'k6') {
+        $reportDir = 'Reporte_20k6';
+        $statsFile = 'summary.json';
+    } else {
+        $reportDir = 'Reporte_20JMeter';
+        $statsFile = 'statistics.json';
+    }
+
     // 1. Construimos la URL completa para descargar el artifact desde Jenkins
-    $statsUrl = env('JENKINS_URL') . "/job/Contenedor-Proyectos/job/{$projectName}/{$buildNumber}/Reporte_20JMeter/statistics.json";
+    $statsUrl = env('JENKINS_URL') . "/job/Contenedor-Proyectos/job/{$projectName}/{$buildNumber}/{$reportDir}/{$statsFile}";
 Log::debug("URL exacta enviada a Jenkins: " . $statsUrl);
     try {
         // 2. Descargamos el JSON mediante petición HTTP autenticada (indispensable en Docker)
@@ -205,14 +222,15 @@ Log::debug("URL exacta enviada a Jenkins: " . $statsUrl);
 
         $statsContent = $response->body();
 
-        // 3. Prompt estructurado para la IA
-        $prompt = "Actúa como un Ingeniero de Performance Senior. Analiza los siguientes datos JSON de un reporte de JMeter y proporciona un reporte ejecutivo:
+        // 3. Prompt estructurado para la IA (ajustado a la herramienta)
+        $herramienta = $tool === 'k6' ? 'k6' : 'JMeter';
+        $prompt = "Actúa como un Ingeniero de Performance Senior. Analiza los siguientes datos JSON de un reporte de {$herramienta} y proporciona un reporte ejecutivo:
         1. Identificación de cuellos de botella (basado en tiempos de respuesta).
         2. Análisis de escalabilidad (Percentil 95 vs Promedio).
         3. Resumen de tasa de errores.
         4. Evaluación de viabilidad técnica según valores de Mínimo, Promedio y Máximo.
-        
-        Datos JSON: 
+
+        Datos JSON:
         " . $statsContent;
 
         // 4. Llamada a la API de Gemini
