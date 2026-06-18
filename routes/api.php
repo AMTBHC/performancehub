@@ -24,6 +24,8 @@ Route::post('/login', [AuthController::class, 'login']);
 
 Route::post('/ai/refine-text', [AIReportController::class, 'refineText']);
 
+Route::post('/ai/generar-script', [AIReportController::class, 'generarScript']);
+
 
 /*
 |--------------------------------------------------------------------------
